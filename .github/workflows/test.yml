@@ -1,0 +1,51 @@
+name: Test
+
+on: push
+
+jobs:
+  build-and-test:
+    env:
+      DATABASE_URL: 'postgresql://prisma:prisma@localhost/tests'
+      NODE_OPTIONS: '--max-old-space-size=4096'
+
+    services:
+      postgres:
+        image: postgres:12
+        env:
+          POSTGRES_USER: prisma
+          POSTGRES_PASSWORD: prisma
+          POSTGRES_DB: tests
+        # Set health checks to wait until postgres has started
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 1s
+          --health-timeout 1s
+          --health-retries 60
+        ports:
+          - 5432:5432
+
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      # Build
+      - uses: pnpm/action-setup@v2
+        with:
+          version: 7
+      - name: Install Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build backend
+        run: pnpm build:ci
+      - name: Lint
+        run: pnpm lint
+      - name: Tests
+        run: pnpm test:ci
+      - name: Build web
+        run: pnpm build:web
